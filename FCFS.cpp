@@ -42,10 +42,13 @@ public:
         int currTime=0;
         int cnt=0;
         int wt[n];
+        int ta[n];
+        int res[n];
 
         // set up the array
         for(int i=0; i<n; i++){
             wt[i]=0;
+            res[i]=-1;
             for(int j=0; j<50; j++){
                 cpu[i][j]='-';
                 io[i][j]='-';
@@ -64,15 +67,6 @@ public:
                     cnt++;
                 }
             }
-            // CPU doesn't have any process, push process from cpu queue to run
-            while(!cpuQueue.empty() && CPU.empty()){
-                CPU.push_back(cpuQueue[0]);
-                if(CPU[0].arrival+CPU[0].ioStart==currTime){
-                    ioQueue.push_back(CPU[0]);
-                    CPU.clear();
-                }
-                cpuQueue.erase(cpuQueue.begin());
-            }
 
             if(!CPU.empty()){
                 if(CPU[0].arrival+CPU[0].ioStart==currTime){
@@ -80,10 +74,20 @@ public:
                     CPU.clear();
                 }
             }
+            // CPU doesn't have any process, push process from cpu queue to run
+            while(!cpuQueue.empty() && CPU.empty()){
+                CPU.push_back(cpuQueue[0]);
+                if(res[CPU[0].id-1]==-1)
+                    res[CPU[0].id-1]=currTime;
+                if(CPU[0].arrival+CPU[0].ioStart==currTime){
+                    ioQueue.push_back(CPU[0]);
+                    CPU.clear();
+                }
+                cpuQueue.erase(cpuQueue.begin());
+            }
 
             if(!ioRun.empty()){
                 if(ioRun[0].arrival+ioRun[0].ioStart+ioRun[0].io==currTime){
-                    
                     ioRun[0].cpu+=ioRun[0].io;
                     cpuQueue.push_back(ioRun[0]);
                     ioRun.clear();
@@ -92,7 +96,6 @@ public:
             
             if(ioRun.empty()){
                 if(!ioQueue.empty()){
-                    //cout<<ioQueue[0].arrival<<'\n';
                     ioRun.push_back(ioQueue[0]);
                     ioQueue.erase(ioQueue.begin());
                 }
@@ -106,6 +109,7 @@ public:
             }
             if(!CPU.empty()){
                 if(CPU[0].arrival+CPU[0].cpu==currTime){
+                    ta[CPU[0].id-1]=currTime;
                     CPU.clear();
                 }
             }
@@ -113,18 +117,29 @@ public:
             // CPU doesn't have any process, push process from cpu queue to run
             if(!cpuQueue.empty() && CPU.empty()){
                 CPU.push_back(cpuQueue[0]);
+                if(res[CPU[0].id-1]==-1)
+                    res[CPU[0].id-1]=currTime;
                 cpuQueue.erase(cpuQueue.begin());
             }
 
+            
+            while(!CPU.empty()){
+                if(CPU[0].arrival+CPU[0].cpu==currTime){
+                    ta[CPU[0].id-1]=currTime;
+                    CPU.clear();
+                }
+                if(!cpuQueue.empty() && CPU.empty()){
+                    CPU.push_back(cpuQueue[0]);
+                    if(res[CPU[0].id-1]==-1)
+                        res[CPU[0].id-1]=currTime;
+                    cpuQueue.erase(cpuQueue.begin());
+                }
+                else break;
+            }
             // 1 process take CPU and other processes in CPU queue
             if(!cpuQueue.empty() && !CPU.empty()){
                 for(int i=0; i<cpuQueue.size(); i++){
                     cpuQueue[i].arrival++;
-                }
-            }
-            if(!CPU.empty()){
-                if(CPU[0].arrival+CPU[0].cpu==currTime){
-                    CPU.clear();
                 }
             }
             if(CPU.empty()){
@@ -171,33 +186,21 @@ public:
             cout<<'\n';
         }
         double waitingTime=0;
-        double turnAround=0;
         double CPUusage=0;
         double response=0;
+        double turnAround=0;
         for(int i=0; i<currTime-1; i++){
             if(cpu[0][i]!='|')
                 CPUusage++;
         }
         for(int i=0; i<n; i++){
-            int tmp=0;
-            for(int j=0; j<currTime-1; j++){
-                if(cpu[i][j]=='#'){
-                    tmp=j;
-                    break;
-                }
-            }
-            response+=tmp-process[i].arrival;
+            response+=res[i]-process[i].arrival;
         }
-        for(int i=0; i<n; i++)
-            waitingTime+=double(wt[i]);
         for(int i=0; i<n; i++){
-            int tmp=0;
-            for(int j=0; j<currTime; j++){ 
-                if(cpu[i][j]=='#'){
-                    tmp=j+1;
-                }
-            }
-            turnAround+=tmp-process[i].arrival;
+            waitingTime+=double(wt[i]);
+        }
+        for(int i=0; i<n; i++){
+            turnAround+=ta[i]-process[i].arrival;
         }
         cout<<"CPU usage: "<<CPUusage*100/(currTime-1)<<"%\n";
         cout<<"Average response time: "<<response/n<<'\n';
